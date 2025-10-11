@@ -30,13 +30,21 @@ def send_mail(to, subject, body):
     msg["To"] = to
     msg["Subject"] = subject
 
-    with smtplib.SMTP_SSL(
-        host=os.environ["SMTP_SERVER"],
-        port=int(os.environ["SMTP_PORT"])
-    ) as server:
-        server.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
-        server.send_message(msg)
+    server_host = os.environ["SMTP_SERVER"]
+    server_port = int(os.environ["SMTP_PORT"])
 
+    if server_port == 465:
+        # SSL mode (e.g. Gmail)
+        with smtplib.SMTP_SSL(server_host, server_port) as server:
+            server.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
+            server.send_message(msg)
+    else:
+        # STARTTLS mode (e.g. Mailtrap, Outlook, SendGrid)
+        with smtplib.SMTP(server_host, server_port) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
+            server.send_message(msg)
 # -------------------------------
 # Task assignment with rotation
 # -------------------------------
