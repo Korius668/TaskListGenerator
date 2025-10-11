@@ -2,15 +2,15 @@ name: Weekly Task Rotation
 
 on:
   schedule:
-    - cron: '0 9 * * 1' # co poniedziałek o 9:00 UTC
-  workflow_dispatch:     # można też uruchomić ręcznie
+    - cron: '0 9 * * 1' # every Monday 09:00 UTC
+  workflow_dispatch:
 
 jobs:
   assign-tasks:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -19,13 +19,15 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pandas numpy smtplib email-validator
+        run: pip install pandas numpy email-validator
 
-      - name: Run assignment script
+      - name: Run task assignment
         env:
+          TASKS_JSON: ${{ secrets.TASKS_JSON }}
+          PEOPLE_JSON: ${{ secrets.PEOPLE_JSON }}
+          HISTORY_JSON: ${{ secrets.HISTORY_JSON }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
-        run: |
-          python .github/scripts/assign_tasks.py
+        run: python .github/scripts/assign_tasks.py
