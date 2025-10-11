@@ -2,7 +2,7 @@ name: Weekly Task Rotation
 
 on:
   schedule:
-    - cron: '0 9 * * 1' # every Monday 09:00 UTC
+    - cron: '0 9 * * 0' # every Monday at 09:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # We also want access to the history branch if it exists
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,13 +24,46 @@ jobs:
       - name: Install dependencies
         run: pip install pandas numpy email-validator
 
+      - name: Fetch or create history branch
+        run: |
+          git fetch origin task-history || echo "No existing history branch"
+          if git show-ref --verify --quiet refs/remotes/origin/task-history; then
+            echo "✅ History branch exists"
+            git checkout task-history
+            cp .github/data/history.json history.json 2>/dev/null || echo "{}" > history.json
+          else
+            echo "🚀 Creating new history branch"
+            git checkout --orphan task-history
+            mkdir -p .github/data
+            echo "{}" > .github/data/history.json
+            git add .github/data/history.json
+            git commit -m "Initialize task history"
+            git push origin task-history
+          fi
+          git checkout main
+
       - name: Run task assignment
         env:
           TASKS_JSON: ${{ secrets.TASKS_JSON }}
           PEOPLE_JSON: ${{ secrets.PEOPLE_JSON }}
-          HISTORY_JSON: ${{ secrets.HISTORY_JSON }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
         run: python .github/scripts/assign_tasks.py
+
+      - name: Commit updated history
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Move updated history to correct branch
+          git checkout task-history
+          cp .github/data/history.json .github/data/history.json
+
+          git add .github/data/history.json
+          git commit -m "Update task history [skip ci]" || echo "No changes to commit"
+
+          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }} task-history
