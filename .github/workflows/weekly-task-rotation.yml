@@ -5,6 +5,9 @@ on:
     - cron: '0 9 * * 0' # every Sunday at 09:00 UTC
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   assign-tasks:
     runs-on: ubuntu-latest
@@ -13,8 +16,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # We also want access to the history branch if it exists
           fetch-depth: 0
+
       - name: Configure Git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -34,7 +37,6 @@ jobs:
           if git show-ref --verify --quiet refs/remotes/origin/task-history; then
             echo "✅ History branch exists"
             git checkout task-history
-            cp .github/data/history.json history.json 2>/dev/null || echo "{}" > history.json
           else
             echo "🚀 Creating new history branch"
             git checkout --orphan task-history
@@ -59,15 +61,19 @@ jobs:
       - name: Commit updated history
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Move updated history to correct branch
+          # Copy latest history from main into task-history branch
+          cp .github/data/history.json /tmp/history.json
+          git fetch origin task-history
           git checkout task-history
-          cp .github/data/history.json .github/data/history.json
+          cp /tmp/history.json .github/data/history.json
 
           git add .github/data/history.json
           git commit -m "Update task history [skip ci]" || echo "No changes to commit"
+          TOKEN=${GH_PAT:-${GITHUB_TOKEN}}
+          git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }} task-history
 
-          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }} task-history
