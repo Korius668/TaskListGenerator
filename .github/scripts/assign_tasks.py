@@ -4,6 +4,7 @@ import pandas as pd
 import smtplib
 from email.mime.text import MIMEText
 from pathlib import Path
+from datetime import date # ⬅️ ADD THIS LINE
 
 # -------------------------------
 # Load configuration
@@ -88,7 +89,7 @@ print("✅ All tasks assigned and emails sent.")
 # -------------------------------
 new_history = {"last_week": {name: data["tasks"] for name, data in assignments.items()}}
 history_path.parent.mkdir(parents=True, exist_ok=True)
-with open(history_path, "w") as f:
-    json.dump(new_history, f, indent=2)
+with open(history_path, "w", encoding='utf-8') as f:
+    json.dump(new_history, f, indent=2, ensure_ascii=False)
 
 print("🗂️ Updated history saved to .github/data/history.json")
