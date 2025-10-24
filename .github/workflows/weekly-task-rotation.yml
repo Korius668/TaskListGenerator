@@ -49,7 +49,28 @@ jobs:
           echo "Cloning private data repository..."
           git clone https://x-access-token:${{ env.DATA_PAT }}@github.com/${{ env.DATA_REPO }}.git private_data
           
-          # Move the history file into the expected location for the Python script
+          CLONED_FILE_PATH="private_data/${HISTORY_FILE}"
+          if [ -f "$CLONED_FILE_PATH" ]; then
+            echo "✅ History file found in private repo."
+          else
+            echo "⚠️ History file not found (Empty repo or first run). Initializing file..."
+            
+            # 2. Create the necessary directory structure and the file inside the clone
+            mkdir -p private_data/.github/data
+            echo "{}" > "$CLONED_FILE_PATH" 
+            
+            # 3. Commit and push this initialization back to the private repo
+            #    This ensures the repo is not empty for the next run.
+            (
+              cd private_data
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add "$HISTORY_FILE"
+              git commit -m "Initialize task history file"
+              git push origin main
+            )
+            echo "✅ Initial history file committed and pushed to private repo."
+          fi
           mkdir -p .github/data
           cp private_data/${{ env.HISTORY_FILE }} ${{ env.HISTORY_FILE }}
           
