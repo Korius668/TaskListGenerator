@@ -66,22 +66,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Define a temporary branch name
+          # Define branch variables
           TEMP_BRANCH="temp-history-update"
           TARGET_BRANCH="task-history"
       
-          # 2. Commit the generated file to a temporary branch (e.g., 'temp-history-update')
-          # This captures the new state of the file without touching the main branch history.
+          # --- NO STASHING OR COPYING NEEDED ---
+          
+          # 2. Commit the newly generated file to a TEMPORARY branch.
+          # This captures the file's current state cleanly.
           git checkout -b $TEMP_BRANCH
           git add .github/data/history.json
           git commit -m "Temp commit for history update"
           
-          # 3. Switch to the target branch
+          # 3. Switch to the target branch.
           git fetch origin $TARGET_BRANCH
           git checkout $TARGET_BRANCH
           
-          # 4. OVERWRITE the target branch's file with the version from the temporary branch
-          # This is the key step: it pulls only the file from the temp branch, guaranteeing no conflicts.
+          # 4. OVERWRITE the target branch's file with the version from the temporary branch.
+          # This step pulls only the file's content, resolving any conflict automatically.
           git checkout $TEMP_BRANCH -- .github/data/history.json
       
           # 5. Commit the final change on the target branch
