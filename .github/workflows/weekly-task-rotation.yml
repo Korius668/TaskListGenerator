@@ -24,7 +24,7 @@ jobs:
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       SMTP_SERVER: ${{ vars.SMTP_SERVER }}
       SMTP_PORT: ${{ vars.SMTP_PORT }}
-      DATA_PAT: ${{ secrets.DATA_REPO_PAT }} # Use the PAT for private repo access
+      DATA_PAT: ${{ secrets.DATA_PAT }} # Use the PAT for private repo access
 
     steps:
       - name: Checkout repository (Public Repo)
