@@ -87,7 +87,7 @@ print("✅ All tasks assigned and emails sent.")
 # -------------------------------
 # Save updated rotation history
 # -------------------------------
-new_history = {date.today(): {name: data["tasks"] for name, data in assignments.items()}}
+new_history = {str(date.today()): {name: data["tasks"] for name, data in assignments.items()}}
 history_path.parent.mkdir(parents=True, exist_ok=True)
 with open(history_path, "w", encoding='utf-8') as f:
     json.dump(new_history, f, indent=2, ensure_ascii=False)
