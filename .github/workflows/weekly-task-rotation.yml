@@ -85,6 +85,8 @@ jobs:
           # 1. Navigate into the cloned private repository
           cd private_data
           
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           # 2. Copy the newly generated history file (from the python script)
           # The source file is in the parent directory, where the script ran
           cp ../${{ env.HISTORY_FILE }} ${{ env.HISTORY_FILE }}
