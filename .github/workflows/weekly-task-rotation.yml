@@ -94,6 +94,6 @@ jobs:
           git commit -m "Update task history [skip ci]" || echo "No changes to commit"
           
           # Push directly to the main branch of the private repo
-          git push origin main
+          git push
           
           echo "✅ History pushed to private repository"
