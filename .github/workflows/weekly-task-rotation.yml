@@ -65,15 +65,24 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Copy latest history from main into task-history branch
+          
+          # 1. Copy latest history from main into a temporary file
           cp .github/data/history.json /tmp/history.json
+          
+          # 2. Stash the current state (to allow a clean checkout)
+          git add .github/data/history.json
+          git stash push -m "Stashing current history before branch switch"
+          
+          # 3. Switch branches
           git fetch origin task-history
           git checkout task-history
-          cp /tmp/history.json .github/data/history.json
 
+          # 4. Restore the stashed history file
+          git stash pop
+
+          # The file is now back in the working directory, ready to be added and committed.
           git add .github/data/history.json
           git commit -m "Update task history [skip ci]" || echo "No changes to commit"
+          
           TOKEN=${GH_PAT:-${GITHUB_TOKEN}}
           git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }} task-history
-
