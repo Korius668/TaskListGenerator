@@ -65,22 +65,40 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+      
           # 1. Copy latest history from main into a temporary file
           cp .github/data/history.json /tmp/history.json
-          
+      
           # 2. Stash the current state (to allow a clean checkout)
           git add .github/data/history.json
           git stash push -m "Stashing current history before branch switch"
-          
+      
           # 3. Switch branches
           git fetch origin task-history
           git checkout task-history
-
-          # 4. Restore the stashed history file
-          git stash pop
-
-          # The file is now back in the working directory, ready to be added and committed.
+      
+          # --- FIX STARTS HERE ---
+          # 4. Apply the stashed changes, favoring the stashed (local) version during conflict
+          # This command attempts the merge, but since we are going to overwrite it anyway, 
+          # we just need to make sure the stashed file is available in the working directory.
+          git stash apply --index 
+      
+          # 5. Reset the conflicted file to keep the local (stashed/updated) version
+          # This step RESOLVES the conflict by throwing away the 'task-history' version and 
+          # keeping the content from the 'git stash apply'.
+          git checkout --theirs .github/data/history.json
+          # OR, even simpler (since the copy/stash logic should mean the file is correct):
+          
+          # After a failed 'git stash pop' or 'apply', the conflict markers are in the file.
+          # We resolve the conflict by simply re-copying the correct version from /tmp
+          # This is the safest way to ensure the file is exactly what was generated.
+          cp /tmp/history.json .github/data/history.json
+      
+          # 6. Clean up the stash entry manually (since pop failed/wasn't used)
+          git stash drop 0 || true
+          # --- FIX ENDS HERE ---
+      
+          # 7. Final commit
           git add .github/data/history.json
           git commit -m "Update task history [skip ci]" || echo "No changes to commit"
           
