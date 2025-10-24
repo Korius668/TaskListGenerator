@@ -6,63 +6,73 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # Needed for initial checkout, but NOT for pushing to private repo
 
 jobs:
   assign-tasks:
     runs-on: ubuntu-latest
+    
+    # Define environment variables used across multiple steps
+    env:
+      # Private Repository Configuration
+      DATA_REPO: ${{ vars.DATA_REPO }}
+      HISTORY_FILE: .github/data/history.json
+      # Python Script variables
+      TASKS_JSON: ${{ vars.TASKS_JSON }}
+      PEOPLE_JSON: ${{ vars.PEOPLE_JSON }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      SMTP_SERVER: ${{ vars.SMTP_SERVER }}
+      SMTP_PORT: ${{ vars.SMTP_PORT }}
+      DATA_PAT: ${{ secrets.DATA_REPO_PAT }} # Use the PAT for private repo access
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (Public Repo)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Configure Git identity
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Set up Python
+      - name: Set up Python and Install dependencies
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install pandas numpy email-validator
-
-      - name: Fetch or create history branch
+      - run: pip install pandas numpy email-validator
+      
+      - name: Fetch History from Private Repository
         run: |
-          git fetch origin task-history || echo "No existing history branch"
-          if git show-ref --verify --quiet refs/remotes/origin/task-history; then
-            echo "✅ History branch exists"
-            git checkout task-history
-          else
-            echo "🚀 Creating new history branch"
-            git checkout --orphan task-history
-            mkdir -p .github/data
-            echo "{}" > .github/data/history.json
-            git add .github/data/history.json
-            git commit -m "Initialize task history"
-            git push origin task-history
-          fi
+          # Clone the private data repository using the PAT
+          echo "Cloning private data repository..."
+          git clone https://x-access-token:${{ env.DATA_PAT }}@github.com/${{ env.DATA_REPO }}.git private_data
+          
+          # Move the history file into the expected location for the Python script
+          mkdir -p .github/data
+          cp private_data/${{ env.HISTORY_FILE }} ${{ env.HISTORY_FILE }}
+          
+          echo "✅ History file copied from private repo to local workspace."
 
-      - name: Run task assignment
-        env:
-          TASKS_JSON: ${{ vars.TASKS_JSON }}
-          PEOPLE_JSON: ${{ vars.PEOPLE_JSON }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          SMTP_SERVER: ${{ vars.SMTP_SERVER }}
-          SMTP_PORT: ${{ vars.SMTP_PORT }}
+      - name: Run task assignment (Generates new history.json)
+        # Note: All necessary env variables are defined at the job level
         run: python .github/scripts/assign_tasks.py
-      - name: Commit updated history
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Commit and Push Updated History to Private Repository
         run: |
-          git add .github/data/history.json
+          # 1. Navigate into the cloned private repository
+          cd private_data
+          
+          # 2. Copy the newly generated history file (from the python script)
+          # The source file is in the parent directory, where the script ran
+          cp ../${{ env.HISTORY_FILE }} ${{ env.HISTORY_FILE }}
+          
+          # 3. Commit and push the changes using the PAT embedded in the remote URL
+          git add ${{ env.HISTORY_FILE }}
           git commit -m "Update task history [skip ci]" || echo "No changes to commit"
-          git push 
-        
-
+          
+          # Push directly to the main branch of the private repo
+          git push origin main
+          
+          echo "✅ History pushed to private repository"
