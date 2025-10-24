@@ -46,7 +46,6 @@ jobs:
             git commit -m "Initialize task history"
             git push origin task-history
           fi
-          git checkout main
 
       - name: Run task assignment
         env:
@@ -62,40 +61,8 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Configuration
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Define branch variables
-          TEMP_BRANCH="temp-history-update"
-          TARGET_BRANCH="task-history"
-          
-          # 2. Commit the newly generated file to a TEMPORARY branch.
-          git checkout -b $TEMP_BRANCH
-          git add .github/data/history.json
-          git commit -m "Temp commit for history update"
-          
-          # 3. Fetch/Create the target branch.
-          if git fetch origin $TARGET_BRANCH; then
-            echo "✅ Target branch $TARGET_BRANCH exists."
-            git checkout $TARGET_BRANCH
-          else
-            echo "🚀 Creating new target branch $TARGET_BRANCH."
-            # Create a new, empty (orphan) branch for history
-            git checkout --orphan $TARGET_BRANCH
-            git rm -rf . # Remove all files from the index
-            mkdir -p .github/data
-            # We don't need to commit here, the next step adds the content
-          fi
-          
-          # 4. OVERWRITE the target branch's file with the version from the temporary branch.
-          # This step pulls only the file's content, resolving any conflict automatically.
-          git checkout $TEMP_BRANCH -- .github/data/history.json
-          
-          # 5. Commit the final change on the target branch
           git add .github/data/history.json
           git commit -m "Update task history [skip ci]" || echo "No changes to commit"
-          
-          # 6. Push the changes
-            TOKEN=${GH_PAT:-${GITHUB_TOKEN}}
-            git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }} $TARGET_BRANCH -f
+          git push 
+        
+
