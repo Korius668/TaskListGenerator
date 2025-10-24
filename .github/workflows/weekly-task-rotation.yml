@@ -57,50 +57,37 @@ jobs:
           SMTP_SERVER: ${{ vars.SMTP_SERVER }}
           SMTP_PORT: ${{ vars.SMTP_PORT }}
         run: python .github/scripts/assign_tasks.py
-
       - name: Commit updated history
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 1. Configuration
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      
-          # 1. Copy latest history from main into a temporary file
-          cp .github/data/history.json /tmp/history.json
-      
-          # 2. Stash the current state (to allow a clean checkout)
-          git add .github/data/history.json
-          git stash push -m "Stashing current history before branch switch"
-      
-          # 3. Switch branches
-          git fetch origin task-history
-          git checkout task-history
-      
-          # --- FIX STARTS HERE ---
-          # 4. Apply the stashed changes, favoring the stashed (local) version during conflict
-          # This command attempts the merge, but since we are going to overwrite it anyway, 
-          # we just need to make sure the stashed file is available in the working directory.
-          git stash apply --index 
-      
-          # 5. Reset the conflicted file to keep the local (stashed/updated) version
-          # This step RESOLVES the conflict by throwing away the 'task-history' version and 
-          # keeping the content from the 'git stash apply'.
-          git checkout --theirs .github/data/history.json
-          # OR, even simpler (since the copy/stash logic should mean the file is correct):
           
-          # After a failed 'git stash pop' or 'apply', the conflict markers are in the file.
-          # We resolve the conflict by simply re-copying the correct version from /tmp
-          # This is the safest way to ensure the file is exactly what was generated.
-          cp /tmp/history.json .github/data/history.json
+          # Define a temporary branch name
+          TEMP_BRANCH="temp-history-update"
+          TARGET_BRANCH="task-history"
       
-          # 6. Clean up the stash entry manually (since pop failed/wasn't used)
-          git stash drop 0 || true
-          # --- FIX ENDS HERE ---
+          # 2. Commit the generated file to a temporary branch (e.g., 'temp-history-update')
+          # This captures the new state of the file without touching the main branch history.
+          git checkout -b $TEMP_BRANCH
+          git add .github/data/history.json
+          git commit -m "Temp commit for history update"
+          
+          # 3. Switch to the target branch
+          git fetch origin $TARGET_BRANCH
+          git checkout $TARGET_BRANCH
+          
+          # 4. OVERWRITE the target branch's file with the version from the temporary branch
+          # This is the key step: it pulls only the file from the temp branch, guaranteeing no conflicts.
+          git checkout $TEMP_BRANCH -- .github/data/history.json
       
-          # 7. Final commit
+          # 5. Commit the final change on the target branch
           git add .github/data/history.json
           git commit -m "Update task history [skip ci]" || echo "No changes to commit"
           
+          # 6. Push the changes
           TOKEN=${GH_PAT:-${GITHUB_TOKEN}}
-          git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }} task-history
+          git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }} $TARGET_BRANCH
