@@ -87,9 +87,23 @@ print("✅ All tasks assigned and emails sent.")
 # -------------------------------
 # Save updated rotation history
 # -------------------------------
-new_history = {str(date.today()): {name: data["tasks"] for name, data in assignments.items()}}
+# 1. Prepare the new assignment data
+new_assignment_data = {name: data["tasks"] for name, data in assignments.items()}
+today_date = date.today().isoformat()
+
+# 2. Update the main history object
+#    Add the new dated entry
+history[today_date] = new_assignment_data 
+
+#    Update the 'last_week' key for the rotation logic
+history["last_week"] = new_assignment_data 
+
+# Ensure the directory exists
 history_path.parent.mkdir(parents=True, exist_ok=True)
+
+# 3. Dump the entire, updated history object back to the file
 with open(history_path, "w", encoding='utf-8') as f:
-    json.dump(new_history, f, indent=2, ensure_ascii=False)
+    # Use the main 'history' object, not a new one
+    json.dump(history, f, indent=2, ensure_ascii=False) 
 
 print("🗂️ Updated history saved to .github/data/history.json")
